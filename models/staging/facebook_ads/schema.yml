@@ -4,6 +4,12 @@ models:
   - name: stg_facebook_ads__insights
     description: Cleaned and standardized Facebook Ads performance data from Windsor.ai with data quality filtering
     columns:
+      - name: insights_key
+        description: Surrogate key generated from the grain (date, account_id, campaign_id, ad_id) to ensure unique record identification
+        tests:
+          - not_null
+          - unique
+
       - name: date_day
         description: Report date for the advertising metrics
         tests:
@@ -35,14 +41,16 @@ models:
       - name: campaign_objective
         description: Standardized Facebook campaign objective (Lead Generation, Conversions, etc.)
         tests:
+          - not_null
           - accepted_values:
-              values: ['Outcome Traffic', 'Lead Generation', 'Conversions', 'Brand Awareness']
+              values: ['Lead Generation', 'Conversions', 'Traffic', 'Brand Awareness', 'Reach', 'Video Views', 'Messages', 'App Installs', 'Event Responses', 'Link Clicks', 'Local Awareness', 'Offer Claims', 'Outcome App Promotion', 'Outcome Awareness', 'Outcome Engagement', 'Outcome Leads', 'Outcome Sales', 'Outcome Traffic', 'Page Likes', 'Post Engagement', 'Product Catalog Sales', 'Store Visits', 'Unknown']
 
       - name: campaign_status
         description: Current status of the campaign
         tests:
+          - not_null
           - accepted_values:
-              values: ['ACTIVE', 'PAUSED', 'ARCHIVED', 'DELETED']
+              values: ['ACTIVE', 'PAUSED', 'ARCHIVED', 'DELETED', 'Unknown']
 
       - name: ad_id
         description: Facebook Ad ID - unique identifier for the individual ad
@@ -51,91 +59,152 @@ models:
 
       - name: ad_name
         description: Ad name - human-readable ad identifier
+        tests:
+          - not_null
 
       - name: impressions
-        description: Number of times the ad was displayed
+        description: Number of times the ad was displayed (INT64)
         tests:
           - not_null
           - dbt_utils.accepted_range:
               min_value: 0
+              inclusive: true
 
       - name: clicks
-        description: Number of clicks on the ad
+        description: Number of clicks on the ad (INT64)
         tests:
           - not_null
           - dbt_utils.accepted_range:
               min_value: 0
+              inclusive: true
 
       - name: spend
-        description: Amount spent on the ad in account currency
+        description: Amount spent on the ad in account currency (FLOAT64)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: reach
+        description: Number of unique users who saw the ad (INT64)
         tests:
           - not_null
           - dbt_utils.accepted_range:
               min_value: 0
-
-      - name: reach
-        description: Number of unique users who saw the ad
-        tests:
-          - dbt_utils.accepted_range:
-              min_value: 0
+              inclusive: true
 
       - name: frequency
-        description: Average number of times each user saw the ad (impressions/reach)
+        description: Average number of times each user saw the ad (impressions/reach) (FLOAT64)
         tests:
+          - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
+              min_value: 0.0
+              inclusive: true
 
       - name: cost_per_mille
-        description: Cost per 1000 impressions (CPM)
+        description: Cost per 1000 impressions (CPM) (FLOAT64)
         tests:
+          - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
+              min_value: 0.0
+              inclusive: true
 
       - name: cost_per_click
-        description: Average cost per click (CPC)
+        description: Average cost per click (CPC) (FLOAT64)
         tests:
+          - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
+              min_value: 0.0
+              inclusive: true
 
       - name: click_through_rate
-        description: Click-through rate as percentage (clicks/impressions * 100)
+        description: Click-through rate as percentage (clicks/impressions * 100) (FLOAT64)
         tests:
+          - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
-              max_value: 100
+              min_value: 0.0
+              max_value: 100.0
+              inclusive: true
 
       - name: conversions
-        description: Number of purchase conversions attributed to the ad
+        description: Number of purchase conversions attributed to the ad (INT64)
         tests:
+          - not_null
           - dbt_utils.accepted_range:
               min_value: 0
+              inclusive: true
 
       - name: conversion_value
-        description: Total value of purchase conversions in account currency
+        description: Total value of purchase conversions in account currency (FLOAT64)
         tests:
+          - not_null
           - dbt_utils.accepted_range:
-              min_value: 0
+              min_value: 0.0
+              inclusive: true
 
       - name: cost_per_conversion
-        description: Average cost per conversion (spend/conversions)
+        description: Average cost per conversion (spend/conversions) - calculated field, null when no conversions (FLOAT64)
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
+              min_value: 0.0
+              inclusive: true
 
       - name: return_on_ad_spend
-        description: Return on ad spend ratio (conversion_value/spend)
+        description: Return on ad spend ratio (conversion_value/spend) - calculated field, null when no spend (FLOAT64)
         tests:
           - dbt_utils.accepted_range:
-              min_value: 0
+              min_value: 0.0
+              inclusive: true
+
+      - name: data_quality_flag
+        description: Data quality validation flag indicating record validity
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Valid', 'Missing Key Fields', 'Negative Metrics', 'Invalid CTR', 'Invalid Frequency']
 
     tests:
+      # Primary grain uniqueness test using surrogate key
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns:
             - date_day
             - account_id
             - campaign_id
             - ad_id
+          name: unique_insights_grain
+      
+      # Data validation tests
       - dbt_utils.expression_is_true:
-          expression: "clicks <= impressions or impressions is null"
+          expression: "clicks <= impressions or impressions = 0"
+          name: clicks_not_exceed_impressions
+      
       - dbt_utils.expression_is_true:
-          expression: "reach <= impressions or reach is null or impressions is null"
+          expression: "reach <= impressions or reach = 0 or impressions = 0"
+          name: reach_not_exceed_impressions
+      
+      - dbt_utils.expression_is_true:
+          expression: "frequency >= 1.0 or frequency = 0.0 or reach = 0"
+          name: frequency_logical_minimum
+      
+      # Calculated field validation tests
+      - dbt_utils.expression_is_true:
+          expression: "(cost_per_conversion is null and conversions = 0) or (cost_per_conversion is not null and conversions > 0)"
+          name: cost_per_conversion_consistency
+      
+      - dbt_utils.expression_is_true:
+          expression: "(return_on_ad_spend is null and spend = 0.0) or (return_on_ad_spend is not null and spend > 0.0)"
+          name: return_on_ad_spend_consistency
+
+      - dbt_utils.expression_is_true:
+          expression: "cost_per_conversion is null or (cost_per_conversion >= 0 and conversions > 0)"
+          name: cost_per_conversion_logic_check
+      
+      - dbt_utils.expression_is_true:
+          expression: "return_on_ad_spend is null or (return_on_ad_spend >= 0 and spend > 0)"
+          name: return_on_ad_spend_logic_check
+      
+      # Data quality flag validation
+      - dbt_utils.expression_is_true:
+          expression: "data_quality_flag = 'Valid'"
+          name: only_valid_records_in_final_output

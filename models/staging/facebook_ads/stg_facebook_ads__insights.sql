@@ -6,67 +6,121 @@ with source_data as (
 
 cleaned_data as (
   select
-    date as date_day,
-    account_id,
-    account_name,
-    campaign_id,
-    campaign as campaign_name,
+    -- Surrogate key for the grain: date, account_id, campaign_id, ad_id
+    {{ dbt_utils.generate_surrogate_key(['date', 'account_id', 'campaign_id', 'ad_id']) }} as insights_key,
+    
+    -- Core identifiers with BigQuery data type casting and null handling
+    cast(date as date) as date_day,
+    cast(coalesce(account_id, '') as string) as account_id,
+    cast(coalesce(account_name, '') as string) as account_name,
+    cast(coalesce(campaign_id, '') as string) as campaign_id,
+    cast(coalesce(campaign, '') as string) as campaign_name,
+    
+    -- Campaign objective standardization per field mapping doc
     case 
-      when upper(campaign_objective) = 'APP_INSTALLS' then 'App Installs'
-      when upper(campaign_objective) = 'BRAND_AWARENESS' then 'Brand Awareness'
-      when upper(campaign_objective) = 'CONVERSIONS' then 'Conversions'
-      when upper(campaign_objective) = 'EVENT_RESPONSES' then 'Event Responses'
-      when upper(campaign_objective) = 'LEAD_GENERATION' then 'Lead Generation'
-      when upper(campaign_objective) = 'LINK_CLICKS' then 'Link Clicks'
-      when upper(campaign_objective) = 'LOCAL_AWARENESS' then 'Local Awareness'
-      when upper(campaign_objective) = 'MESSAGES' then 'Messages'
-      when upper(campaign_objective) = 'OFFER_CLAIMS' then 'Offer Claims'
-      when upper(campaign_objective) = 'OUTCOME_APP_PROMOTION' then 'Outcome App Promotion'
-      when upper(campaign_objective) = 'OUTCOME_AWARENESS' then 'Outcome Awareness'
-      when upper(campaign_objective) = 'OUTCOME_ENGAGEMENT' then 'Outcome Engagement'
-      when upper(campaign_objective) = 'OUTCOME_LEADS' then 'Outcome Leads'
-      when upper(campaign_objective) = 'OUTCOME_SALES' then 'Outcome Sales'
-      when upper(campaign_objective) = 'OUTCOME_TRAFFIC' then 'Outcome Traffic'
-      when upper(campaign_objective) = 'PAGE_LIKES' then 'Page Likes'
-      when upper(campaign_objective) = 'POST_ENGAGEMENT' then 'Post Engagement'
-      when upper(campaign_objective) = 'PRODUCT_CATALOG_SALES' then 'Product Catalog Sales'
-      when upper(campaign_objective) = 'REACH' then 'Reach'
-      when upper(campaign_objective) = 'STORE_VISITS' then 'Store Visits'
-      when upper(campaign_objective) = 'VIDEO_VIEWS' then 'Video Views'
-      else campaign_objective
+      when upper(trim(coalesce(campaign_objective, ''))) = 'LEAD_GENERATION' then 'Lead Generation'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'CONVERSIONS' then 'Conversions'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'TRAFFIC' then 'Traffic'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'BRAND_AWARENESS' then 'Brand Awareness'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'REACH' then 'Reach'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'VIDEO_VIEWS' then 'Video Views'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'MESSAGES' then 'Messages'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'APP_INSTALLS' then 'App Installs'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'EVENT_RESPONSES' then 'Event Responses'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'LINK_CLICKS' then 'Link Clicks'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'LOCAL_AWARENESS' then 'Local Awareness'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'OFFER_CLAIMS' then 'Offer Claims'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'OUTCOME_APP_PROMOTION' then 'Outcome App Promotion'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'OUTCOME_AWARENESS' then 'Outcome Awareness'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'OUTCOME_ENGAGEMENT' then 'Outcome Engagement'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'OUTCOME_LEADS' then 'Outcome Leads'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'OUTCOME_SALES' then 'Outcome Sales'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'OUTCOME_TRAFFIC' then 'Outcome Traffic'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'PAGE_LIKES' then 'Page Likes'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'POST_ENGAGEMENT' then 'Post Engagement'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'PRODUCT_CATALOG_SALES' then 'Product Catalog Sales'
+      when upper(trim(coalesce(campaign_objective, ''))) = 'STORE_VISITS' then 'Store Visits'
+      else coalesce(campaign_objective, 'Unknown')
     end as campaign_objective,
-    campaign_status,
-    ad_id,
-    ad_name,
-    impressions,
-    clicks,
-    spend,
-    reach,
-    frequency,
-    cpm as cost_per_mille,
-    cpc as cost_per_click,
-    ctr as click_through_rate,
-    actions_purchase as conversions,
-    action_values_purchase as conversion_value,
-    safe_divide(spend, nullif(actions_purchase, 0)) as cost_per_conversion,
-    safe_divide(action_values_purchase, nullif(spend, 0)) as return_on_ad_spend
+    
+    cast(coalesce(campaign_status, 'Unknown') as string) as campaign_status,
+    cast(coalesce(ad_id, '') as string) as ad_id,
+    cast(coalesce(ad_name, '') as string) as ad_name,
+    
+    -- Performance metrics with BigQuery casting and validation
+    cast(coalesce(impressions, 0) as int64) as impressions,
+    cast(coalesce(clicks, 0) as int64) as clicks,
+    cast(coalesce(spend, 0.0) as float64) as spend,
+    cast(coalesce(reach, 0) as int64) as reach,
+    cast(coalesce(frequency, 0.0) as float64) as frequency,
+    
+    -- Cost metrics with null handling
+    cast(coalesce(cpm, 0.0) as float64) as cost_per_mille,
+    cast(coalesce(cpc, 0.0) as float64) as cost_per_click,
+    cast(coalesce(ctr, 0.0) as float64) as click_through_rate,
+    
+    -- Conversion metrics
+    cast(coalesce(actions_purchase, 0) as int64) as conversions,
+    cast(coalesce(action_values_purchase, 0.0) as float64) as conversion_value,
+    
+    -- Calculated metrics with proper null handling
+    case 
+      when coalesce(actions_purchase, 0) > 0 then cast(spend / actions_purchase as float64)
+      else null
+    end as cost_per_conversion,
+    
+    case 
+      when coalesce(spend, 0) > 0 then cast(action_values_purchase / spend as float64)
+      else null
+    end as return_on_ad_spend,
+    
+    -- Data quality flags
+    case 
+      when date is null or account_id is null or campaign_id is null or ad_id is null then 'Missing Key Fields'
+      when spend < 0 or clicks < 0 or impressions < 0 then 'Negative Metrics'
+      when clicks > impressions and impressions > 0 then 'Invalid CTR'
+      when frequency < 0 then 'Invalid Frequency'
+      else 'Valid'
+    end as data_quality_flag
+    
   from source_data
+  where date is not null
+    and account_id is not null
+    and campaign_id is not null
+    and ad_id is not null
 )
 
 select * from cleaned_data
 where 1=1
-  and date_day is not null
-  and account_id is not null
-  and campaign_id is not null
+  -- Date filtering
   and date_day >= '{{ var("facebook_ads_start_date") }}'
+  
+  -- Data quality filtering
+  and data_quality_flag = 'Valid'
+  
+  -- Test campaign filtering with comprehensive patterns
   {% if var("exclude_test_campaigns", true) %}
   and not (
     lower(campaign_name) like '%test%' 
+    or lower(campaign_name) like '%demo%'
+    or lower(campaign_name) like '%sample%'
+    or lower(campaign_name) like '%trial%'
     or lower(ad_name) like '%test%'
+    or lower(ad_name) like '%demo%'
+    or lower(ad_name) like '%sample%'
+    or lower(ad_name) like '%trial%'
+    or regexp_contains(lower(campaign_name), r'\b(test|demo|sample|trial)\b')
+    or regexp_contains(lower(ad_name), r'\b(test|demo|sample|trial)\b')
   )
   {% endif %}
+  
+  -- Spend and performance thresholds
   and spend >= {{ var("min_spend_threshold", 0) }}
-  and spend >= 0
-  and clicks >= 0
-  and impressions >= 0
-  and (clicks <= impressions or impressions is null)
+  and impressions >= {{ var("min_impressions_threshold", 1) }}
+  
+  -- Additional data validation filters
+  and account_id != ''
+  and campaign_id != ''
+  and ad_id != ''
+  and campaign_name != ''
+  and ad_name != ''
