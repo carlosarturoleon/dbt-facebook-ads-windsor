@@ -15,6 +15,12 @@ sources:
             description: Facebook Ad Account ID
           - name: account_name
             description: Business Manager account name
+          - name: account_status
+            description: Facebook Ad Account status
+          - name: account_currency
+            description: Account currency setting
+          - name: currency
+            description: Currency field (alternative to account_currency)
           - name: campaign_id
             description: Facebook Campaign ID
           - name: campaign
@@ -47,3 +53,31 @@ sources:
             description: Total purchase conversions
           - name: action_values_purchase
             description: Total purchase conversion value
+          - name: campaign_bid_strategy
+            description: Campaign bidding strategy
+          - name: campaign_budget_remaining
+            description: Remaining budget for the campaign
+          - name: campaign_buying_type
+            description: Campaign buying type (auction vs reservation)
+          - name: campaign_configured_status
+            description: User-configured campaign status
+          - name: campaign_created_time
+            description: Timestamp when campaign was created
+          - name: campaign_daily_budget
+            description: Daily budget limit for the campaign
+          - name: campaign_effective_status
+            description: Facebook's effective campaign status
+          - name: campaign_lifetime_budget
+            description: Lifetime budget limit for the campaign
+          - name: campaign_special_ad_category
+            description: Special ad category if applicable
+          - name: campaign_spend_cap
+            description: Spend cap limit for the campaign
+          - name: campaign_start_time
+            description: Campaign start time
+          - name: campaign_stop_time
+            description: Campaign stop time
+          - name: objective
+            description: Campaign objective (alternative field)
+          - name: totalcost
+            description: Total cost of the campaign
