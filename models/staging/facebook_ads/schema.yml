@@ -66,15 +66,11 @@ models:
         description: Boolean flag indicating if the account has any active campaigns
         tests:
           - not_null
-          - accepted_values:
-              values: [true, false]
 
       - name: is_test_account
         description: Boolean flag indicating if this appears to be a test account based on naming patterns
         tests:
           - not_null
-          - accepted_values:
-              values: [true, false]
 
       - name: account_name_quality_flag
         description: Data quality assessment of the account name
@@ -87,6 +83,198 @@ models:
         description: Timestamp when the record was processed by dbt
         tests:
           - not_null
+
+  - name: stg_facebook_ads__campaigns
+    description: Cleaned and standardized Facebook Ads campaign data with account hierarchy and metadata
+    columns:
+      - name: campaign_key
+        description: Surrogate key for the campaign (generated from campaign_id)
+        tests:
+          - not_null
+          - unique
+
+      - name: account_key
+        description: Foreign key to accounts table (generated from account_id)
+        tests:
+          - not_null
+
+      - name: campaign_id
+        description: Facebook Campaign ID - unique identifier for the campaign
+        tests:
+          - not_null
+          - unique
+
+      - name: account_id
+        description: Facebook Ad Account ID - parent account identifier
+        tests:
+          - not_null
+
+      - name: campaign_name_clean
+        description: Cleaned and standardized campaign name with consistent formatting
+        tests:
+          - not_null
+
+      - name: campaign_name_raw
+        description: Original campaign name as provided by the source system
+        tests:
+          - not_null
+
+      - name: campaign_objective_clean
+        description: Standardized campaign objective with consistent naming
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Lead Generation', 'Conversions', 'Traffic', 'Brand Awareness', 'Reach', 'Video Views', 'Messages', 'App Installs', 'Event Responses', 'Link Clicks', 'Local Awareness', 'Offer Claims', 'Page Likes', 'Post Engagement', 'Product Catalog Sales', 'Store Visits', 'Unknown']
+
+      - name: campaign_objective_raw
+        description: Original campaign objective from source data
+        tests:
+          - not_null
+
+      - name: campaign_status_clean
+        description: Standardized campaign status derived from effective and configured status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ACTIVE', 'PAUSED', 'ARCHIVED', 'SCHEDULED', 'UNDER_REVIEW', 'REJECTED', 'ERROR', 'DRAFT', 'COMPLETED', 'UNKNOWN']
+
+      - name: campaign_effective_status
+        description: Facebook's effective campaign status (actual current status)
+        tests:
+          - not_null
+
+      - name: campaign_configured_status
+        description: Facebook's configured campaign status (user-set status)
+        tests:
+          - not_null
+
+      - name: campaign_bid_strategy
+        description: Bidding strategy used for the campaign
+        tests:
+          - not_null
+
+      - name: campaign_buying_type
+        description: Campaign buying type (auction vs reservation)
+        tests:
+          - not_null
+
+      - name: campaign_special_ad_category
+        description: Special ad category if applicable (e.g., political, housing)
+
+      - name: campaign_daily_budget
+        description: Daily budget limit for the campaign in account currency (FLOAT64)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: campaign_lifetime_budget
+        description: Lifetime budget limit for the campaign in account currency (FLOAT64)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: campaign_budget_remaining
+        description: Remaining budget for the campaign in account currency (FLOAT64)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: campaign_spend_cap
+        description: Spend cap limit for the campaign in account currency (FLOAT64)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: amount_spent
+        description: Total amount spent on the campaign in account currency (derived from spend field) (FLOAT64)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: total_cost
+        description: Total cost of the campaign in account currency (derived from totalcost field) (FLOAT64)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: campaign_created_time
+        description: Timestamp when the campaign was created
+        tests:
+          - not_null
+
+      - name: campaign_start_time
+        description: Timestamp when the campaign is scheduled to start
+
+      - name: campaign_stop_time
+        description: Timestamp when the campaign is scheduled to stop
+
+      - name: is_test_campaign
+        description: Boolean flag indicating if this appears to be a test campaign based on naming patterns
+        tests:
+          - not_null
+
+      - name: campaign_name_quality_flag
+        description: Data quality assessment of the campaign name
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Valid', 'Missing Name', 'Numeric Only', 'Too Short']
+
+      - name: budget_type
+        description: Classification of budget type used by the campaign
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Daily Budget', 'Lifetime Budget', 'Both Budgets', 'No Budget Set']
+
+      - name: _dbt_loaded_at
+        description: Timestamp when the record was processed by dbt
+        tests:
+          - not_null
+
+    tests:
+      # Primary grain uniqueness test
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - campaign_id
+          name: unique_campaign_grain
+      
+      # Account hierarchy validation
+      - dbt_utils.expression_is_true:
+          expression: "account_id is not null and account_id != ''"
+          name: account_hierarchy_valid
+      
+      # Budget consistency tests
+      - dbt_utils.expression_is_true:
+          expression: "campaign_budget_remaining <= greatest(coalesce(campaign_daily_budget, 0), coalesce(campaign_lifetime_budget, 0)) or (campaign_daily_budget = 0 and campaign_lifetime_budget = 0)"
+          name: budget_remaining_logical
+      
+      # Date logic validation
+      - dbt_utils.expression_is_true:
+          expression: "campaign_start_time is null or campaign_stop_time is null or campaign_start_time <= campaign_stop_time"
+          name: campaign_date_logic
+      
+      # Spend validation
+      - dbt_utils.expression_is_true:
+          expression: "amount_spent >= 0 and total_cost >= 0"
+          name: spend_amounts_positive
+
+      # Boolean field validation
+      - dbt_utils.expression_is_true:
+          expression: "is_test_campaign in (true, false)"
+          name: is_test_campaign_boolean_values
 
 
   - name: stg_facebook_ads__insights
@@ -301,3 +489,12 @@ models:
       - dbt_utils.expression_is_true:
           expression: "data_quality_flag = 'Valid'"
           name: only_valid_records_in_final_output
+
+      # Boolean field validation
+      - dbt_utils.expression_is_true:
+          expression: "has_active_campaigns in (true, false)"
+          name: has_active_campaigns_boolean_values
+      
+      - dbt_utils.expression_is_true:
+          expression: "is_test_account in (true, false)" 
+          name: is_test_account_boolean_values          
