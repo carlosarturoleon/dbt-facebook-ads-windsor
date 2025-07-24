@@ -1,7 +1,7 @@
 {{ config(materialized='view') }}
 
 with source_data as (
-  select * from {{ source('raw_data', 'facebook_ads_windsor') }}
+  select * from {{ source('raw_data', 'facebook_ads_windsor_real') }}
 ),
 
 cleaned_data as (
@@ -81,7 +81,9 @@ cleaned_data as (
       when clicks > impressions and impressions > 0 then 'Invalid CTR'
       when frequency < 0 then 'Invalid Frequency'
       else 'Valid'
-    end as data_quality_flag
+    end as data_quality_flag,
+    
+    current_timestamp() as _dbt_loaded_at
     
   from source_data
   where date is not null

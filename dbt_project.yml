@@ -32,5 +32,5 @@ models:
         +tags: ["marts", "facebook_ads"]
 
 vars:
-  facebook_ads_source_table: 'windsor-dbt-development.raw_data.facebook_ads_windsor'
+  facebook_ads_source_table: 'windsor-dbt-development.raw_data.facebook_ads_windsor_real'
   facebook_ads_start_date: '2024-01-01'
