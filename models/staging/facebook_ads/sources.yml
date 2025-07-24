@@ -6,7 +6,7 @@ sources:
     database: windsor-dbt-development
     schema: raw_data
     tables:
-      - name: facebook_ads_windsor
+      - name: facebook_ads_windsor_real
         description: Raw Facebook Ads performance data from Windsor.ai integration
         columns:
           - name: date
