@@ -81,3 +81,50 @@ sources:
             description: Campaign objective (alternative field)
           - name: totalcost
             description: Total cost of the campaign
+      - name: facebook_ads_windsor_ads
+        description: Raw Facebook Ads data with ad-level details from Windsor.ai integration
+        columns:
+          - name: actor_id
+            description: Facebook Ad Account ID
+          - name: ad_created_time
+            description: Timestamp when ad was created
+          - name: ad_id
+            description: Facebook Ad ID
+          - name: ad_name
+            description: Ad name
+          - name: ad_object_type
+            description: Type of ad object
+          - name: adset_id
+            description: Facebook Ad Set ID
+          - name: status
+            description: Ad status
+          - name: title
+            description: Ad title/headline
+          - name: body
+            description: Ad body text
+          - name: link
+            description: Ad link
+          - name: link_url
+            description: Ad destination URL
+          - name: thumbnail_url
+            description: Ad thumbnail image URL
+          - name: facebook_permalink_url
+            description: Facebook permalink for the ad
+          - name: instagram_permalink_url
+            description: Instagram permalink for the ad
+          - name: website_destination_url
+            description: Website destination URL
+          - name: desktop_feed_standard_preview_url
+            description: Desktop feed preview URL
+          - name: facebook_story_mobile_preview_url
+            description: Facebook story mobile preview URL
+          - name: instagram_standard_preview_url
+            description: Instagram standard preview URL
+          - name: instagram_story_preview_url
+            description: Instagram story preview URL
+          - name: url_tags
+            description: URL tags/parameters
+          - name: source_instagram_media_id
+            description: Source Instagram media ID
+          - name: instagram_actor_id
+            description: Instagram actor ID
