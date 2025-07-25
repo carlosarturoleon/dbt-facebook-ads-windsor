@@ -277,6 +277,199 @@ models:
           name: is_test_campaign_boolean_values
 
 
+  - name: stg_facebook_ads__ads
+    description: Cleaned and standardized Facebook Ads ad-level data with creative information and hierarchy
+    columns:
+      - name: ad_key
+        description: Surrogate key for the ad (generated from ad_id)
+        tests:
+          - not_null
+          - unique
+
+      - name: adset_key
+        description: Foreign key to adsets table (generated from adset_id)
+        tests:
+          - not_null
+
+      - name: account_key
+        description: Foreign key to accounts table (generated from actor_id)
+        tests:
+          - not_null
+
+      - name: ad_id
+        description: Facebook Ad ID - unique identifier for the ad
+        tests:
+          - not_null
+          - unique
+
+      - name: adset_id
+        description: Facebook Ad Set ID - parent adset identifier
+        tests:
+          - not_null
+
+      - name: account_id
+        description: Facebook Ad Account ID - parent account identifier (derived from actor_id)
+        tests:
+          - not_null
+
+      - name: ad_name_clean
+        description: Cleaned and standardized ad name with consistent formatting
+        tests:
+          - not_null
+
+      - name: ad_name_raw
+        description: Original ad name as provided by the source system
+        tests:
+          - not_null
+
+      - name: ad_status_clean
+        description: Standardized ad status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['ACTIVE', 'PAUSED', 'ARCHIVED', 'SCHEDULED', 'UNDER_REVIEW', 'REJECTED', 'ERROR', 'DRAFT', 'COMPLETED', 'UNKNOWN']
+
+      - name: ad_status_raw
+        description: Original ad status as provided by the source system
+        tests:
+          - not_null
+
+      - name: ad_object_type
+        description: Type of ad object
+
+      - name: ad_created_time
+        description: Timestamp when the ad was created
+
+      - name: ad_title_clean
+        description: Cleaned ad title/headline with consistent formatting
+
+      - name: ad_title_raw
+        description: Original ad title from source data
+
+      - name: ad_body_clean
+        description: Cleaned ad body text with consistent formatting
+
+      - name: ad_body_raw
+        description: Original ad body text from source data
+
+      - name: ad_link
+        description: Ad link
+
+      - name: ad_link_url
+        description: Ad destination URL
+
+      - name: ad_thumbnail_url
+        description: Ad thumbnail image URL
+
+      - name: facebook_permalink_url
+        description: Facebook permalink for the ad
+
+      - name: instagram_permalink_url
+        description: Instagram permalink for the ad
+
+      - name: website_destination_url
+        description: Website destination URL
+
+      - name: desktop_feed_standard_preview_url
+        description: Desktop feed preview URL
+
+      - name: facebook_story_mobile_preview_url
+        description: Facebook story mobile preview URL
+
+      - name: instagram_standard_preview_url
+        description: Instagram standard preview URL
+
+      - name: instagram_story_preview_url
+        description: Instagram story preview URL
+
+      - name: campaign_name_raw
+        description: Campaign name for reference
+
+      - name: adset_name_raw
+        description: Ad set name for reference
+
+      - name: url_tags
+        description: URL tags/parameters
+
+      - name: source_instagram_media_id
+        description: Source Instagram media ID
+
+      - name: instagram_actor_id
+        description: Instagram actor ID
+
+      - name: is_test_ad
+        description: Boolean flag indicating if this appears to be a test ad based on naming patterns
+        tests:
+          - not_null
+
+      - name: ad_name_quality_flag
+        description: Data quality assessment of the ad name
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Valid', 'Missing Name', 'Numeric Only', 'Too Short']
+
+      - name: creative_content_type
+        description: Classification of creative content availability
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Title and Body', 'Title Only', 'Body Only', 'No Title or Body']
+
+      - name: has_destination_url
+        description: Boolean flag indicating if ad has a destination URL
+        tests:
+          - not_null
+
+      - name: has_social_permalink
+        description: Boolean flag indicating if ad has social media permalinks
+        tests:
+          - not_null
+
+      - name: has_thumbnail
+        description: Boolean flag indicating if ad has a thumbnail image
+        tests:
+          - not_null
+
+      - name: _dbt_loaded_at
+        description: Timestamp when the record was processed by dbt
+        tests:
+          - not_null
+
+    tests:
+      # Primary grain uniqueness test
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - ad_id
+          name: unique_ad_grain
+      
+      # Hierarchy validation
+      - dbt_utils.expression_is_true:
+          expression: "account_id is not null and account_id != ''"
+          name: ad_account_hierarchy_valid
+      
+      - dbt_utils.expression_is_true:
+          expression: "adset_id is not null and adset_id != ''"
+          name: ad_adset_hierarchy_valid
+
+      # Boolean field validation
+      - dbt_utils.expression_is_true:
+          expression: "is_test_ad in (true, false)"
+          name: is_test_ad_boolean_values
+
+      - dbt_utils.expression_is_true:
+          expression: "has_destination_url in (true, false)"
+          name: has_destination_url_boolean_values
+
+      - dbt_utils.expression_is_true:
+          expression: "has_social_permalink in (true, false)"
+          name: has_social_permalink_boolean_values
+
+      - dbt_utils.expression_is_true:
+          expression: "has_thumbnail in (true, false)"
+          name: has_thumbnail_boolean_values
+
+
   - name: stg_facebook_ads__insights
     description: Cleaned and standardized Facebook Ads performance data from Windsor.ai with data quality filtering
     columns:
