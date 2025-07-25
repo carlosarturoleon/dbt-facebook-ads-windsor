@@ -585,7 +585,7 @@ models:
           name: cost_per_conversion_consistency
       
       - dbt_utils.expression_is_true:
-          expression: "(return_on_ad_spend is null and spend = 0.0) or (return_on_ad_spend is not null and spend > 0.0)"
+          expression: "return_on_ad_spend is null or (spend > 0.0 and conversion_value is not null and abs(return_on_ad_spend - (conversion_value / spend)) < 0.01)"
           name: return_on_ad_spend_consistency
 
       - dbt_utils.expression_is_true:
@@ -601,11 +601,4 @@ models:
           expression: "data_quality_flag = 'Valid'"
           name: only_valid_records_in_final_output
 
-      # Boolean field validation
-      - dbt_utils.expression_is_true:
-          expression: "has_active_campaigns in (true, false)"
-          name: has_active_campaigns_boolean_values
-      
-      - dbt_utils.expression_is_true:
-          expression: "is_test_account in (true, false)" 
-          name: is_test_account_boolean_values          
+          

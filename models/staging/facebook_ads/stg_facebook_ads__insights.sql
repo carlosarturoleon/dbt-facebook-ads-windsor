@@ -1,7 +1,24 @@
 {{ config(materialized='view') }}
 
 with source_data as (
-  select * from {{ source('raw_data', 'facebook_ads_windsor_real') }}
+  select * from {{ source('raw_data', 'facebook_ads_windsor_insights') }}
+),
+
+deduplicated_data as (
+  select * except(row_num)
+  from (
+    select *,
+      row_number() over (
+        partition by date, account_id, campaign_id, ad_id 
+        order by spend desc, impressions desc
+      ) as row_num
+    from source_data
+    where date is not null
+      and account_id is not null
+      and campaign_id is not null
+      and ad_id is not null
+  )
+  where row_num = 1
 ),
 
 cleaned_data as (
@@ -57,20 +74,20 @@ cleaned_data as (
     -- Cost metrics with null handling
     cast(coalesce(cpm, 0.0) as float64) as cost_per_mille,
     cast(coalesce(cpc, 0.0) as float64) as cost_per_click,
-    cast(coalesce(ctr, 0.0) as float64) as click_through_rate,
+    coalesce(safe_cast(ctr as float64), 0.0) as click_through_rate,
     
     -- Conversion metrics
-    cast(coalesce(actions_purchase, 0) as int64) as conversions,
-    cast(coalesce(action_values_purchase, 0.0) as float64) as conversion_value,
+    coalesce(safe_cast(actions_purchase as int64), 0) as conversions,
+    coalesce(safe_cast(action_values_purchase as float64), 0.0) as conversion_value,
     
     -- Calculated metrics with proper null handling
     case 
-      when coalesce(actions_purchase, 0) > 0 then cast(spend / actions_purchase as float64)
+      when coalesce(safe_cast(actions_purchase as int64), 0) > 0 then spend / safe_cast(actions_purchase as int64)
       else null
     end as cost_per_conversion,
     
     case 
-      when coalesce(spend, 0) > 0 then cast(action_values_purchase / spend as float64)
+      when coalesce(spend, 0) > 0 then safe_cast(action_values_purchase as float64) / spend
       else null
     end as return_on_ad_spend,
     
@@ -85,7 +102,7 @@ cleaned_data as (
     
     current_timestamp() as _dbt_loaded_at
     
-  from source_data
+  from deduplicated_data
   where date is not null
     and account_id is not null
     and campaign_id is not null
