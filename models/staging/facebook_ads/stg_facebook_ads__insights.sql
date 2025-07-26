@@ -1,7 +1,75 @@
-{{ config(materialized='view') }}
+{{ config(
+    materialized='incremental',
+    unique_key='insights_key',
+    on_schema_change='fail',
+    partition_by={
+        "field": "date_day",
+        "data_type": "date",
+        "granularity": "day"
+    },
+    cluster_by=['account_id', 'campaign_id']
+) }}
 
 with source_data as (
-  select * from {{ source('raw_data', 'facebook_ads_windsor_real') }}
+  select 
+    date,
+    account_id,
+    account_name,
+    campaign_id,
+    campaign,
+    campaign_objective,
+    campaign_status,
+    ad_id,
+    ad_name,
+    impressions,
+    clicks,
+    spend,
+    reach,
+    frequency,
+    cpm,
+    cpc,
+    ctr,
+    actions_purchase,
+    action_values_purchase
+  from {{ source('raw_data', 'facebook_ads_windsor_insights') }}
+  where date is not null
+    and account_id is not null
+    and campaign_id is not null
+    and ad_id is not null
+    {% if is_incremental() %}
+      and date > (select max(date_day) from {{ this }})
+    {% endif %}
+),
+
+deduplicated_data as (
+  select 
+    date,
+    account_id,
+    account_name,
+    campaign_id,
+    campaign,
+    campaign_objective,
+    campaign_status,
+    ad_id,
+    ad_name,
+    impressions,
+    clicks,
+    spend,
+    reach,
+    frequency,
+    cpm,
+    cpc,
+    ctr,
+    actions_purchase,
+    action_values_purchase
+  from source_data
+  qualify row_number() over (
+    partition by date, account_id, campaign_id, ad_id 
+    order by 
+      coalesce(spend, 0) desc, 
+      coalesce(impressions, 0) desc,
+      ad_name desc -- deterministic ordering for ties
+  ) = 1
 ),
 
 cleaned_data as (
@@ -57,20 +125,20 @@ cleaned_data as (
     -- Cost metrics with null handling
     cast(coalesce(cpm, 0.0) as float64) as cost_per_mille,
     cast(coalesce(cpc, 0.0) as float64) as cost_per_click,
-    cast(coalesce(ctr, 0.0) as float64) as click_through_rate,
+    coalesce(safe_cast(ctr as float64), 0.0) as click_through_rate,
     
     -- Conversion metrics
-    cast(coalesce(actions_purchase, 0) as int64) as conversions,
-    cast(coalesce(action_values_purchase, 0.0) as float64) as conversion_value,
+    coalesce(safe_cast(actions_purchase as int64), 0) as conversions,
+    coalesce(safe_cast(action_values_purchase as float64), 0.0) as conversion_value,
     
     -- Calculated metrics with proper null handling
     case 
-      when coalesce(actions_purchase, 0) > 0 then cast(spend / actions_purchase as float64)
+      when coalesce(safe_cast(actions_purchase as int64), 0) > 0 then spend / safe_cast(actions_purchase as int64)
       else null
     end as cost_per_conversion,
     
     case 
-      when coalesce(spend, 0) > 0 then cast(action_values_purchase / spend as float64)
+      when coalesce(spend, 0) > 0 then safe_cast(action_values_purchase as float64) / spend
       else null
     end as return_on_ad_spend,
     
@@ -85,7 +153,7 @@ cleaned_data as (
     
     current_timestamp() as _dbt_loaded_at
     
-  from source_data
+  from deduplicated_data
   where date is not null
     and account_id is not null
     and campaign_id is not null

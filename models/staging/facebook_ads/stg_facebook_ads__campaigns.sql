@@ -1,7 +1,7 @@
 {{ config(materialized='view') }}
 
 with source_data as (
-  select * from {{ source('raw_data', 'facebook_ads_windsor_real') }}
+  select * from {{ source('raw_data', 'facebook_ads_windsor_campaigns') }}
 ),
 
 unique_campaigns as (

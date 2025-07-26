@@ -6,7 +6,7 @@ sources:
     database: windsor-dbt-development
     schema: raw_data
     tables:
-      - name: facebook_ads_windsor_real
+      - name: facebook_ads_windsor_campaigns
         description: Raw Facebook Ads performance data from Windsor.ai integration
         columns:
           - name: date
@@ -81,6 +81,7 @@ sources:
             description: Campaign objective (alternative field)
           - name: totalcost
             description: Total cost of the campaign
+
       - name: facebook_ads_windsor_ads
         description: Raw Facebook Ads data with ad-level details from Windsor.ai integration
         columns:
@@ -128,3 +129,49 @@ sources:
             description: Source Instagram media ID
           - name: instagram_actor_id
             description: Instagram actor ID
+            
+      - name: facebook_ads_windsor_insights
+        description: Raw Facebook Ads performance insights data from Windsor.ai integration
+        freshness:
+          warn_after: {count: 7, period: day}
+          error_after: {count: 14, period: day}
+        loaded_at_field: date
+        columns:
+          - name: date
+            description: Report date
+          - name: account_id
+            description: Facebook Ad Account ID
+          - name: account_name
+            description: Business Manager account name
+          - name: campaign_id
+            description: Facebook Campaign ID
+          - name: campaign
+            description: Campaign name
+          - name: campaign_objective
+            description: Facebook campaign objective
+          - name: campaign_status
+            description: Campaign status
+          - name: ad_id
+            description: Facebook Ad ID
+          - name: ad_name
+            description: Ad name
+          - name: impressions
+            description: Number of impressions
+          - name: clicks
+            description: Number of clicks
+          - name: spend
+            description: Amount spent in account currency
+          - name: reach
+            description: Unique users reached
+          - name: frequency
+            description: Average impressions per user
+          - name: cpm
+            description: Cost per 1000 impressions
+          - name: cpc
+            description: Cost per click
+          - name: ctr
+            description: Click-through rate (%)
+          - name: actions_purchase
+            description: Total purchase conversions
+          - name: action_values_purchase
+            description: Total purchase conversion value

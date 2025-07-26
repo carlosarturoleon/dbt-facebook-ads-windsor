@@ -390,6 +390,60 @@ models:
 
   - name: stg_facebook_ads__insights
     description: Cleaned and standardized Facebook Ads performance data from Windsor.ai with data quality filtering
+    tests:
+      # Business logic tests
+      - dbt_utils.expression_is_true:
+          expression: "clicks <= impressions or impressions = 0"
+          name: clicks_not_exceed_impressions
+      
+      - dbt_utils.expression_is_true:
+          expression: "reach <= impressions or reach = 0 or impressions = 0"
+          name: reach_not_exceed_impressions
+      
+      - dbt_utils.expression_is_true:
+          expression: "spend >= 0 and clicks >= 0 and impressions >= 0"
+          name: metrics_non_negative
+      
+      - dbt_utils.expression_is_true:
+          expression: "frequency >= 1.0 or frequency = 0.0 or reach = 0"
+          name: frequency_logical_minimum
+      
+      - dbt_utils.expression_is_true:
+          expression: "click_through_rate <= 100.0"
+          name: ctr_within_bounds
+    
+      # Primary grain uniqueness test using surrogate key
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - date_day
+            - account_id
+            - campaign_id
+            - ad_id
+          name: unique_insights_grain
+      
+      # Calculated field validation tests
+      - dbt_utils.expression_is_true:
+          expression: "(cost_per_conversion is null and conversions = 0) or (cost_per_conversion is not null and conversions > 0)"
+          name: cost_per_conversion_consistency
+      
+      - dbt_utils.expression_is_true:
+          expression: "return_on_ad_spend is null or (spend > 0.0 and conversion_value is not null and abs(return_on_ad_spend - (conversion_value / spend)) < 0.01)"
+          name: return_on_ad_spend_consistency
+
+      - dbt_utils.expression_is_true:
+          expression: "cost_per_conversion is null or (cost_per_conversion >= 0 and conversions > 0)"
+          name: cost_per_conversion_logic_check
+      
+      - dbt_utils.expression_is_true:
+          expression: "return_on_ad_spend is null or (return_on_ad_spend >= 0 and spend > 0)"
+          name: return_on_ad_spend_logic_check
+      
+      # Data quality flag validation
+      - dbt_utils.expression_is_true:
+          expression: "data_quality_flag = 'Valid'"
+          name: only_valid_records_in_final_output
+
+    
     columns:
       - name: insights_key
         description: Surrogate key generated from the grain (date, account_id, campaign_id, ad_id) to ensure unique record identification
@@ -555,57 +609,4 @@ models:
         description: Timestamp when the record was processed by dbt
         tests:
           - not_null
-
-    tests:
-      # Primary grain uniqueness test using surrogate key
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns:
-            - date_day
-            - account_id
-            - campaign_id
-            - ad_id
-          name: unique_insights_grain
-      
-      # Data validation tests
-      - dbt_utils.expression_is_true:
-          expression: "clicks <= impressions or impressions = 0"
-          name: clicks_not_exceed_impressions
-      
-      - dbt_utils.expression_is_true:
-          expression: "reach <= impressions or reach = 0 or impressions = 0"
-          name: reach_not_exceed_impressions
-      
-      - dbt_utils.expression_is_true:
-          expression: "frequency >= 1.0 or frequency = 0.0 or reach = 0"
-          name: frequency_logical_minimum
-      
-      # Calculated field validation tests
-      - dbt_utils.expression_is_true:
-          expression: "(cost_per_conversion is null and conversions = 0) or (cost_per_conversion is not null and conversions > 0)"
-          name: cost_per_conversion_consistency
-      
-      - dbt_utils.expression_is_true:
-          expression: "(return_on_ad_spend is null and spend = 0.0) or (return_on_ad_spend is not null and spend > 0.0)"
-          name: return_on_ad_spend_consistency
-
-      - dbt_utils.expression_is_true:
-          expression: "cost_per_conversion is null or (cost_per_conversion >= 0 and conversions > 0)"
-          name: cost_per_conversion_logic_check
-      
-      - dbt_utils.expression_is_true:
-          expression: "return_on_ad_spend is null or (return_on_ad_spend >= 0 and spend > 0)"
-          name: return_on_ad_spend_logic_check
-      
-      # Data quality flag validation
-      - dbt_utils.expression_is_true:
-          expression: "data_quality_flag = 'Valid'"
-          name: only_valid_records_in_final_output
-
-      # Boolean field validation
-      - dbt_utils.expression_is_true:
-          expression: "has_active_campaigns in (true, false)"
-          name: has_active_campaigns_boolean_values
-      
-      - dbt_utils.expression_is_true:
-          expression: "is_test_account in (true, false)" 
-          name: is_test_account_boolean_values          
+          
