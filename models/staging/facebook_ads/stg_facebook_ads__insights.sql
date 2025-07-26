@@ -1,24 +1,75 @@
-{{ config(materialized='view') }}
+{{ config(
+    materialized='incremental',
+    unique_key='insights_key',
+    on_schema_change='fail',
+    partition_by={
+        "field": "date_day",
+        "data_type": "date",
+        "granularity": "day"
+    },
+    cluster_by=['account_id', 'campaign_id']
+) }}
 
 with source_data as (
-  select * from {{ source('raw_data', 'facebook_ads_windsor_insights') }}
+  select 
+    date,
+    account_id,
+    account_name,
+    campaign_id,
+    campaign,
+    campaign_objective,
+    campaign_status,
+    ad_id,
+    ad_name,
+    impressions,
+    clicks,
+    spend,
+    reach,
+    frequency,
+    cpm,
+    cpc,
+    ctr,
+    actions_purchase,
+    action_values_purchase
+  from {{ source('raw_data', 'facebook_ads_windsor_insights') }}
+  where date is not null
+    and account_id is not null
+    and campaign_id is not null
+    and ad_id is not null
+    {% if is_incremental() %}
+      and date > (select max(date_day) from {{ this }})
+    {% endif %}
 ),
 
 deduplicated_data as (
-  select * except(row_num)
-  from (
-    select *,
-      row_number() over (
-        partition by date, account_id, campaign_id, ad_id 
-        order by spend desc, impressions desc
-      ) as row_num
-    from source_data
-    where date is not null
-      and account_id is not null
-      and campaign_id is not null
-      and ad_id is not null
-  )
-  where row_num = 1
+  select 
+    date,
+    account_id,
+    account_name,
+    campaign_id,
+    campaign,
+    campaign_objective,
+    campaign_status,
+    ad_id,
+    ad_name,
+    impressions,
+    clicks,
+    spend,
+    reach,
+    frequency,
+    cpm,
+    cpc,
+    ctr,
+    actions_purchase,
+    action_values_purchase
+  from source_data
+  qualify row_number() over (
+    partition by date, account_id, campaign_id, ad_id 
+    order by 
+      coalesce(spend, 0) desc, 
+      coalesce(impressions, 0) desc,
+      ad_name desc -- deterministic ordering for ties
+  ) = 1
 ),
 
 cleaned_data as (

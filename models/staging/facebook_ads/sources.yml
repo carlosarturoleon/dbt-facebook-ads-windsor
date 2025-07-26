@@ -132,6 +132,10 @@ sources:
             
       - name: facebook_ads_windsor_insights
         description: Raw Facebook Ads performance insights data from Windsor.ai integration
+        freshness:
+          warn_after: {count: 7, period: day}
+          error_after: {count: 14, period: day}
+        loaded_at_field: date
         columns:
           - name: date
             description: Report date
