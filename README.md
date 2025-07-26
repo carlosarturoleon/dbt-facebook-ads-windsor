@@ -1,21 +1,21 @@
 # dbt Facebook Ads Windsor Package
 
-A production-ready dbt package that transforms raw Facebook Ads data from Windsor.ai into clean, analytics-ready tables in BigQuery following standardized architecture patterns.
+A production ready dbt package that transforms raw Facebook Ads data from Windsor.ai into clean, analytics ready tables in BigQuery following standardized architecture patterns.
 
 ## 🚀 Features
 - **Multi-Source Integration**: Support for campaigns, ads, and insights data tables
-- **Data Quality**: Comprehensive testing suite with deduplication and validation
-- **Type Safety**: Robust string-to-numeric conversions with safe_cast
-- **Business Metrics**: Pre-calculated CTR, CPC, ROAS, and conversion rates
-- **Performance Optimized**: BigQuery-optimized data types and filtering
-- **Windsor.ai Integration**: Purpose-built for Windsor.ai Facebook Ads data structure
+- **Data Quality**: Testing suite with deduplication and validation
+- **Type Safety**: String to numeric conversions with safe_cast
+- **Business Metrics**: Precalculated CTR, CPC, ROAS, and conversion rates
+- **Performance Optimized**: BigQuery optimized data types and filtering
+- **Windsor.ai Integration**: Purpose built for Windsor.ai Facebook Ads data structure
 
 ## 📊 Staging Models
 
 | Model | Source Table | Grain | Description |
 |-------|--------------|-------|-------------|
-| `stg_facebook_ads__campaigns` | `facebook_ads_windsor_campaigns` | Campaign | Campaign-level entities with hierarchy and metadata |
-| `stg_facebook_ads__ads` | `facebook_ads_windsor_ads` | Ad | Ad-level entities with creative information |
+| `stg_facebook_ads__campaigns` | `facebook_ads_windsor_campaigns` | Campaign | Campaign level entities with hierarchy and metadata |
+| `stg_facebook_ads__ads` | `facebook_ads_windsor_ads` | Ad | Ad level entities with creative information |
 | `stg_facebook_ads__insights` | `facebook_ads_windsor_insights` | Date + Account + Campaign + Ad | Daily performance metrics with deduplication |
 
 ## 🏗️ Project Structure
@@ -46,7 +46,7 @@ vars:
 ```
 
 2. **Source Tables Required**:
-- `facebook_ads_windsor_campaigns`: Campaign-level data
+- `facebook_ads_windsor_campaigns`: Campaign level data
 - `facebook_ads_windsor_ads`: Ad creative data  
 - `facebook_ads_windsor_insights`: Performance metrics data
 
@@ -86,10 +86,10 @@ Contains daily performance metrics at the ad level.
 
 ### Data Quality Features
 
-- **Deduplication**: Automatic removal of duplicate records by grain
-- **Type Conversion**: Safe string-to-numeric casting for purchase fields
-- **Null Handling**: Proper coalesce logic for missing data
-- **Test Coverage**: Comprehensive dbt tests for data validation
+- **Deduplication**: Removal of duplicate records by grain
+- **Type Conversion**: Safe string to numeric casting for purchase fields
+- **Null Handling**: Coalesce logic for missing data
+- **Test Coverage**: dbt tests for data validation
 
 ## 🧪 Testing
 
@@ -122,11 +122,11 @@ dbt test --select stg_facebook_ads
 
 ### Common Issues
 
-**String Conversion Errors**: The package uses `safe_cast()` to handle string-to-numeric conversions for fields like `actions_purchase`, `action_values_purchase`, and `ctr`.
+**String Conversion Errors**: The package uses `safe_cast()` to handle string to numeric conversions for fields like `actions_purchase`, `action_values_purchase`, and `ctr`.
 
 **Duplicate Records**: The insights model includes automatic deduplication logic that keeps the record with highest spend/impressions for each grain.
 
-**Test Failures**: Check the `return_on_ad_spend_consistency` test - it handles cases where conversion data may not be available.
+**Test Failures**: Check the `return_on_ad_spend_consistency` test it handles cases where conversion data may not be available.
 
 ## 📚 Additional Resources
 
