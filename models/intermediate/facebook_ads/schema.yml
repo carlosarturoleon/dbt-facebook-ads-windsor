@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: int_facebook_ads__currency_normalized
-    description: Facebook Ads insights data with currency normalization and validation framework for future USD conversion
+    description: Facebook Ads insights data with currency normalization and USD conversion using exchange rate data
     columns:
       - name: insights_key
         description: Surrogate key for the grain (date, account_id, campaign_id, ad_id)
@@ -161,10 +161,6 @@ models:
         description: Three-letter currency code for the advertising account (e.g., USD, EUR, GBP)
         tests:
           - not_null
-          - dbt_utils.accepted_range:
-              min_value: 3
-              max_value: 3
-              inclusive: true
 
       - name: currency_validation_flag
         description: Currency validation result flag
@@ -172,6 +168,38 @@ models:
           - not_null
           - accepted_values:
               values: ['Valid Currency']
+
+      - name: enhanced_data_quality_flag
+        description: Enhanced data quality flag combining currency and exchange rate validation
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Valid']
+
+      - name: exchange_rate
+        description: Exchange rate used for USD conversion (foreign currency to USD)
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: false
+
+      - name: exchange_rate_date
+        description: Date of the exchange rate used for conversion
+        tests:
+          - not_null
+
+      - name: exchange_rate_source
+        description: Source of the exchange rate data
+        tests:
+          - not_null
+
+      - name: exchange_rate_quality_flag
+        description: Quality indicator for the exchange rate match
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['No Conversion Needed', 'Direct Rate Match', 'Forward Filled Rate']
 
       - name: spend_original_currency
         description: Amount spent in the original account currency - same as spend field (FLOAT64)
@@ -212,6 +240,43 @@ models:
               min_value: 0.0
               inclusive: true
 
+      - name: spend_usd
+        description: Amount spent converted to USD using exchange rates
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: conversion_value_usd
+        description: Conversion value converted to USD using exchange rates
+        tests:
+          - not_null
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: cost_per_click_usd
+        description: Cost per click converted to USD using exchange rates
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: cost_per_mille_usd
+        description: Cost per mille converted to USD using exchange rates
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
+      - name: cost_per_conversion_usd
+        description: Cost per conversion converted to USD using exchange rates
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0.0
+              inclusive: true
+
       - name: _dbt_loaded_at
         description: Timestamp when the record was processed by dbt
         tests:
@@ -235,6 +300,10 @@ models:
       - dbt_utils.expression_is_true:
           expression: "currency_validation_flag = 'Valid Currency'"
           name: only_valid_currencies_in_output
+      
+      - dbt_utils.expression_is_true:
+          expression: "enhanced_data_quality_flag = 'Valid'"
+          name: only_enhanced_valid_records_in_output
       
       # Original currency field consistency tests
       - dbt_utils.expression_is_true:
@@ -436,6 +505,69 @@ models:
 
       - name: staging_return_on_ad_spend
         description: Return on ad spend from staging model for comparison (FLOAT64)
+
+      - name: account_currency
+        description: Three-letter currency code for the advertising account
+        tests:
+          - not_null
+
+      - name: exchange_rate
+        description: Exchange rate used for USD conversion
+        tests:
+          - not_null
+
+      - name: exchange_rate_date
+        description: Date of the exchange rate used for conversion
+        tests:
+          - not_null
+
+      - name: exchange_rate_source
+        description: Source of the exchange rate data
+        tests:
+          - not_null
+
+      - name: exchange_rate_quality_flag
+        description: Quality indicator for the exchange rate match
+        tests:
+          - not_null
+
+      - name: spend_original_currency
+        description: Amount spent in the original account currency
+        tests:
+          - not_null
+
+      - name: conversion_value_original_currency
+        description: Conversion value in the original account currency
+        tests:
+          - not_null
+
+      - name: cost_per_click_original_currency
+        description: Cost per click in the original account currency
+
+      - name: cost_per_mille_original_currency
+        description: Cost per mille in the original account currency
+
+      - name: cost_per_conversion_original_currency
+        description: Cost per conversion in the original account currency
+
+      - name: spend_usd
+        description: Amount spent converted to USD using exchange rates
+        tests:
+          - not_null
+
+      - name: conversion_value_usd
+        description: Conversion value converted to USD using exchange rates
+        tests:
+          - not_null
+
+      - name: cost_per_click_usd
+        description: Cost per click converted to USD using exchange rates
+
+      - name: cost_per_mille_usd
+        description: Cost per mille converted to USD using exchange rates
+
+      - name: cost_per_conversion_usd
+        description: Cost per conversion converted to USD using exchange rates
 
       - name: enhanced_data_quality_flag
         description: Enhanced data quality validation flag with additional business logic checks

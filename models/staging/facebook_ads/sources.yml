@@ -19,8 +19,6 @@ sources:
             description: Facebook Ad Account status
           - name: account_currency
             description: Account currency setting
-          - name: currency
-            description: Currency field (alternative to account_currency)
           - name: campaign_id
             description: Facebook Campaign ID
           - name: campaign

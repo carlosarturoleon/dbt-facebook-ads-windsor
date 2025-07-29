@@ -1,4 +1,4 @@
-{{ config(materialized='ephemeral') }}
+{{ config(materialized='view') }}
 
 with base_data as (
   select 
@@ -23,16 +23,38 @@ with base_data as (
     conversions,
     conversion_value,
     
-    -- Existing calculated fields from staging
+    -- Currency and exchange rate information
+    account_currency,
+    exchange_rate,
+    exchange_rate_date,
+    exchange_rate_source,
+    exchange_rate_quality_flag,
+    
+    -- Original currency amounts
+    spend_original_currency,
+    conversion_value_original_currency,
+    cost_per_click_original_currency,
+    cost_per_mille_original_currency,
+    cost_per_conversion_original_currency,
+    
+    -- USD converted amounts
+    spend_usd,
+    conversion_value_usd,
+    cost_per_click_usd,
+    cost_per_mille_usd,
+    cost_per_conversion_usd,
+    
+    -- Existing calculated fields from staging (now from currency normalized)
     cost_per_click as existing_cost_per_click,
     cost_per_mille as existing_cost_per_mille,
     click_through_rate as existing_click_through_rate,
     cost_per_conversion as existing_cost_per_conversion,
     return_on_ad_spend as existing_return_on_ad_spend,
     
-    data_quality_flag,
+    -- Use enhanced data quality flag from currency normalization
+    enhanced_data_quality_flag as data_quality_flag,
     _dbt_loaded_at
-  from {{ ref('stg_facebook_ads__insights') }}
+  from {{ ref('int_facebook_ads__currency_normalized') }}
 ),
 
 calculated_metrics as (
@@ -142,6 +164,27 @@ select
   round(conversion_rate, 4) as conversion_rate,
   round(return_on_ad_spend, 4) as return_on_ad_spend,
   round(cost_per_conversion, 4) as cost_per_conversion,
+  
+  -- Currency and exchange rate information
+  account_currency,
+  exchange_rate,
+  exchange_rate_date,
+  exchange_rate_source,
+  exchange_rate_quality_flag,
+  
+  -- Original currency amounts
+  spend_original_currency,
+  conversion_value_original_currency,
+  cost_per_click_original_currency,
+  cost_per_mille_original_currency,
+  cost_per_conversion_original_currency,
+  
+  -- USD converted amounts
+  round(spend_usd, 4) as spend_usd,
+  round(conversion_value_usd, 4) as conversion_value_usd,
+  round(cost_per_click_usd, 4) as cost_per_click_usd,
+  round(cost_per_mille_usd, 4) as cost_per_mille_usd,
+  round(cost_per_conversion_usd, 4) as cost_per_conversion_usd,
   
   -- Existing calculated fields from staging (for comparison)
   round(existing_cost_per_click, 4) as staging_cost_per_click,

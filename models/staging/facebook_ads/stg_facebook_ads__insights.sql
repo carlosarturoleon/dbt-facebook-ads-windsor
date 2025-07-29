@@ -15,6 +15,7 @@ with source_data as (
     date,
     account_id,
     account_name,
+    account_currency,
     campaign_id,
     campaign,
     campaign_objective,
@@ -46,6 +47,7 @@ deduplicated_data as (
     date,
     account_id,
     account_name,
+    account_currency,
     campaign_id,
     campaign,
     campaign_objective,
@@ -81,6 +83,7 @@ cleaned_data as (
     cast(date as date) as date_day,
     cast(coalesce(account_id, '') as string) as account_id,
     cast(coalesce(account_name, '') as string) as account_name,
+    upper(trim(cast(coalesce(account_currency, 'USD') as string))) as account_currency,
     cast(coalesce(campaign_id, '') as string) as campaign_id,
     cast(coalesce(campaign, '') as string) as campaign_name,
     
