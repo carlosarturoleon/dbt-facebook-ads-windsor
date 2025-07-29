@@ -23,7 +23,7 @@ models:
       facebook_ads:
         +tags: ["staging", "facebook_ads"]
     intermediate:
-      +materialized: ephemeral
+      +materialized: view
       facebook_ads:
         +tags: ["intermediate", "facebook_ads"]
     marts:

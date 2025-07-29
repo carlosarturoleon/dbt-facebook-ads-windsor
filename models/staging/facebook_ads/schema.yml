@@ -469,6 +469,11 @@ models:
         tests:
           - not_null
 
+      - name: account_currency
+        description: Three-letter currency code for the advertising account (e.g., USD, EUR, GBP)
+        tests:
+          - not_null
+
       - name: campaign_id
         description: Facebook Campaign ID - unique identifier for the campaign
         tests:

@@ -1,4 +1,4 @@
-{{ config(materialized='ephemeral') }}
+{{ config(materialized='view') }}
 
 with insights_base as (
   select 
@@ -7,6 +7,7 @@ with insights_base as (
     date_day,
     account_id,
     account_name,
+    account_currency,
     campaign_id,
     campaign_name,
     campaign_objective,
@@ -30,51 +31,57 @@ with insights_base as (
   from {{ ref('stg_facebook_ads__insights') }}
 ),
 
--- Get currency information from campaigns source data
--- Since insights table doesn't have currency, we need to get it from campaigns
-campaign_currency_lookup as (
-  select distinct
-    account_id,
-    campaign_id,
-    -- Use account_currency first, then currency field as fallback
-    coalesce(account_currency, currency, 'USD') as account_currency
-  from {{ source('raw_data', 'facebook_ads_windsor_campaigns') }}
-  where account_id is not null 
-    and campaign_id is not null
+-- Exchange rates lookup from seed data
+exchange_rates_lookup as (
+  select 
+    date as exchange_rate_date,
+    currency_code,
+    usd_exchange_rate,
+    source as exchange_rate_source
+  from {{ ref('exchange_rates') }}
 ),
 
--- In case we don't have campaign data, create account-level currency lookup
-account_currency_lookup as (
-  select distinct
-    account_id,
-    -- Use most common currency for each account
-    mode() over (partition by account_id) as account_currency_mode
-  from (
-    select distinct
-      account_id,
-      coalesce(account_currency, currency, 'USD') as account_currency
-    from {{ source('raw_data', 'facebook_ads_windsor_campaigns') }}
-    where account_id is not null
-  )
+-- Get the most recent exchange rate for each currency within our date range
+exchange_rates_with_fill as (
+  select 
+    currency_code,
+    exchange_rate_date,
+    usd_exchange_rate,
+    exchange_rate_source,
+    -- Forward fill exchange rates to cover gaps
+    last_value(usd_exchange_rate ignore nulls) over (
+      partition by currency_code 
+      order by exchange_rate_date 
+      rows unbounded preceding
+    ) as filled_exchange_rate
+  from exchange_rates_lookup
 ),
 
-insights_with_currency as (
+insights_with_exchange_rates as (
   select 
     i.*,
     
-    -- Primary currency lookup from campaign-specific data
-    coalesce(
-      ccl.account_currency,
-      acl.account_currency_mode,
-      'USD'  -- Default fallback if no currency information found
-    ) as account_currency
+    -- Join with most recent available exchange rate
+    coalesce(er.usd_exchange_rate, er.filled_exchange_rate, 1.0) as exchange_rate,
+    er.exchange_rate_date,
+    er.exchange_rate_source,
+    
+    -- Exchange rate quality flags
+    case 
+      when i.account_currency = 'USD' then 'No Conversion Needed'
+      when er.usd_exchange_rate is not null then 'Direct Rate Match'
+      when er.filled_exchange_rate is not null then 'Forward Filled Rate'
+      else 'No Rate Available'
+    end as exchange_rate_quality_flag
     
   from insights_base i
-  left join campaign_currency_lookup ccl
-    on i.account_id = ccl.account_id 
-    and i.campaign_id = ccl.campaign_id
-  left join account_currency_lookup acl
-    on i.account_id = acl.account_id
+  left join exchange_rates_with_fill er
+    on upper(trim(i.account_currency)) = upper(trim(er.currency_code))
+    and er.exchange_rate_date <= i.date_day
+  qualify row_number() over (
+    partition by i.insights_key, er.currency_code 
+    order by er.exchange_rate_date desc
+  ) = 1
 ),
 
 currency_validated as (
@@ -99,8 +106,29 @@ currency_validated as (
         'RSD', 'MKD', 'ALL', 'BAM', 'EUR'  -- Adding EUR again to handle duplicates
       ) then 'Unsupported Currency'
       else 'Valid Currency'
-    end as currency_validation_flag
-  from insights_with_currency
+    end as currency_validation_flag,
+    
+    -- Overall data quality flag combining currency and exchange rate validation
+    case 
+      when account_currency is null then 'Invalid - Missing Currency'
+      when length(trim(account_currency)) != 3 then 'Invalid - Bad Currency Code'
+      when upper(account_currency) not in (
+        'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CNY', 'INR', 'BRL', 'MXN',
+        'KRW', 'SGD', 'HKD', 'NOK', 'SEK', 'DKK', 'CHF', 'PLN', 'CZK', 'HUF',
+        'RON', 'BGN', 'HRK', 'RUB', 'TRY', 'ZAR', 'ILS', 'AED', 'SAR', 'QAR',
+        'KWD', 'BHD', 'OMR', 'JOD', 'LBP', 'EGP', 'MAD', 'TND', 'DZD', 'NGN',
+        'GHS', 'KES', 'UGX', 'TZS', 'ETB', 'XOF', 'XAF', 'ZMW', 'BWP', 'SZL',
+        'LSL', 'NAD', 'MWK', 'MZN', 'AOA', 'CDF', 'RWF', 'BIF', 'DJF', 'ERN',
+        'STD', 'CVE', 'GMD', 'GNF', 'LRD', 'SLL', 'SHP', 'MVR', 'SCR', 'MUR',
+        'KMF', 'MGA', 'YER', 'AFN', 'PKR', 'LKR', 'BDT', 'BTN', 'NPR', 'MMK',
+        'LAK', 'KHR', 'VND', 'THB', 'MYR', 'IDR', 'PHP', 'TWD', 'MNT', 'KZT',
+        'UZS', 'KGS', 'TJS', 'TMT', 'AZN', 'GEL', 'AMD', 'MDL', 'UAH', 'BYN',
+        'RSD', 'MKD', 'ALL', 'BAM', 'EUR'
+      ) then 'Invalid - Unsupported Currency'
+      when exchange_rate_quality_flag = 'No Rate Available' then 'Invalid - No Exchange Rate'
+      else 'Valid'
+    end as enhanced_data_quality_flag
+  from insights_with_exchange_rates
 ),
 
 final_model as (
@@ -132,64 +160,56 @@ final_model as (
     _dbt_loaded_at,
     
     -- Currency information
-    upper(trim(account_currency)) as account_currency,
+    account_currency,
     currency_validation_flag,
+    enhanced_data_quality_flag,
+    
+    -- Exchange rate metadata
+    exchange_rate,
+    exchange_rate_date,
+    exchange_rate_source,
+    exchange_rate_quality_flag,
     
     -- Original currency amounts (for transparency)
     spend as spend_original_currency,
     conversion_value as conversion_value_original_currency,
     cost_per_click as cost_per_click_original_currency,
     cost_per_mille as cost_per_mille_original_currency,
-    cost_per_conversion as cost_per_conversion_original_currency
+    cost_per_conversion as cost_per_conversion_original_currency,
     
-    -- Future USD conversion fields (commented out for now)
-    /*
-    -- These fields will be implemented when exchange rate data is available
+    -- USD converted amounts
     case 
       when account_currency = 'USD' then spend
-      when exchange_rate is not null then spend * exchange_rate
+      when exchange_rate is not null and exchange_rate > 0 then spend / exchange_rate
       else null
     end as spend_usd,
     
     case 
       when account_currency = 'USD' then conversion_value
-      when exchange_rate is not null then conversion_value * exchange_rate
+      when exchange_rate is not null and exchange_rate > 0 then conversion_value / exchange_rate
       else null
     end as conversion_value_usd,
     
     case 
       when account_currency = 'USD' then cost_per_click
-      when exchange_rate is not null then cost_per_click * exchange_rate
+      when exchange_rate is not null and exchange_rate > 0 then cost_per_click / exchange_rate
       else null
     end as cost_per_click_usd,
     
     case 
       when account_currency = 'USD' then cost_per_mille
-      when exchange_rate is not null then cost_per_mille * exchange_rate
+      when exchange_rate is not null and exchange_rate > 0 then cost_per_mille / exchange_rate
       else null
     end as cost_per_mille_usd,
     
     case 
       when account_currency = 'USD' then cost_per_conversion
-      when exchange_rate is not null then cost_per_conversion * exchange_rate
+      when exchange_rate is not null and exchange_rate > 0 then cost_per_conversion / exchange_rate
       else null
-    end as cost_per_conversion_usd,
-    
-    -- Exchange rate metadata (for future use)
-    exchange_rate,
-    exchange_rate_date,
-    exchange_rate_source
-    */
+    end as cost_per_conversion_usd
     
   from currency_validated
 )
 
 select * from final_model
-where currency_validation_flag = 'Valid Currency'
-
--- Future framework for USD conversion:
--- 1. Create or source an exchange rates table with daily rates
--- 2. Join on account_currency and date_day
--- 3. Uncomment the USD conversion fields above
--- 4. Add exchange rate quality validations
--- 5. Consider adding exchange rate source documentation
+where enhanced_data_quality_flag = 'Valid'
