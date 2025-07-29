@@ -9,14 +9,30 @@ A production ready dbt package that transforms raw Facebook Ads data from Windso
 - **Business Metrics**: Precalculated CTR, CPC, ROAS, and conversion rates
 - **Performance Optimized**: BigQuery optimized data types and filtering
 - **Windsor.ai Integration**: Purpose built for Windsor.ai Facebook Ads data structure
+- **Currency Normalization**: Multi currency support with exchange rate handling
+- **Enhanced Metrics**: Performance tiers and alert flags for optimization
+- **Data Validation**: Validation queries for data consistency
 
-## 📊 Staging Models
+## 📊 Model Architecture
 
+### Staging Models
 | Model | Source Table | Grain | Description |
 |-------|--------------|-------|-------------|
 | `stg_facebook_ads__campaigns` | `facebook_ads_windsor_campaigns` | Campaign | Campaign level entities with hierarchy and metadata |
 | `stg_facebook_ads__ads` | `facebook_ads_windsor_ads` | Ad | Ad level entities with creative information |
 | `stg_facebook_ads__insights` | `facebook_ads_windsor_insights` | Date + Account + Campaign + Ad | Daily performance metrics with deduplication |
+
+### Intermediate Models
+| Model | Grain | Description |
+|-------|-------|-------------|
+| `int_facebook_ads__currency_normalized` | Date + Account + Campaign + Ad | Currency conversion and normalization layer |
+| `int_facebook_ads__daily_metrics` | Date + Account + Campaign + Ad | Enhanced metrics with performance tiers and quality flags |
+
+### Mart Models
+| Model | Grain | Description |
+|-------|-------|-------------|
+| `facebook_ads__base_spend` | Date + Account + Campaign + Ad | Essential spend tracking with core performance metrics for ROI analysis |
+| `facebook_ads__ad_performance_daily` | Date + Account + Campaign + Ad | Comprehensive performance metrics with clustering for detailed analysis |
 
 ## 🏗️ Project Structure
 
@@ -29,8 +45,29 @@ models/
 │       ├── stg_facebook_ads__insights.sql   # Performance insights
 │       ├── sources.yml                      # Source table definitions
 │       └── schema.yml                       # Model documentation & tests
+├── intermediate/
+│   └── facebook_ads/
+│       ├── int_facebook_ads__currency_normalized.sql  # Currency conversion
+│       ├── int_facebook_ads__daily_metrics.sql       # Enhanced metrics
+│       └── schema.yml                                 # Model documentation & tests
+├── marts/
+│   └── facebook_ads/
+│       ├── facebook_ads__base_spend.sql               # Core spend tracking
+│       ├── facebook_ads__ad_performance_daily.sql     # Full performance suite
+│       └── schema.yml                                 # Model documentation & tests
 analysis/
+├── docs/
+│   ├── data_discovery_results.md           # Data profiling documentation
+│   └── field_mapping.md                    # Field mapping reference
+├── validation_row_count_consistency.sql    # Row count validation
+├── validation_spend_totals.sql             # Spend totals validation
+├── validation_key_field_consistency.sql    # Key field validation
+├── validation_metric_consistency.sql       # Metric consistency validation
+├── validation_data_quality.sql             # Data quality validation
+├── validation_business_logic.sql           # Business logic validation
 └── windsor_data_profiling.sql              # Data profiling queries
+data/
+└── exchange_rates.csv                      # Sample exchange rate data
 ```
 
 ## 🛠 Quick Start
@@ -52,8 +89,16 @@ vars:
 
 3. **Run the models**:
 ```bash
-dbt run --select +stg_facebook_ads
-dbt test --select +stg_facebook_ads
+# Run all models
+dbt run
+
+# Run specific layers
+dbt run --select +stg_facebook_ads    # Staging only
+dbt run --select +int_facebook_ads    # Staging + Intermediate
+dbt run --select +facebook_ads        # All models
+
+# Run tests
+dbt test
 ```
 
 ## 📋 Data Sources
@@ -91,19 +136,35 @@ Contains daily performance metrics at the ad level.
 - **Null Handling**: Coalesce logic for missing data
 - **Test Coverage**: dbt tests for data validation
 
-## 🧪 Testing
+## 🧪 Testing & Validation
 
-The package includes extensive data quality tests:
+The package includes data quality tests and validation queries:
 
+### Built-in dbt Tests
 - **Uniqueness**: Ensures grain uniqueness across models
 - **Not Null**: Validates required fields
-- **Referentials**: Checks hierarchical relationships
+- **Referential Integrity**: Checks hierarchical relationships
 - **Business Logic**: Validates calculated metrics (ROAS, CPC, etc.)
 - **Data Quality**: Flags invalid or suspicious data
 
-Run tests:
+### Validation Queries
+Located in `analysis/` for ongoing data consistency monitoring:
+
+- **Row Count Consistency**: Validates identical record counts between mart models
+- **Spend Totals Validation**: Ensures spend amounts match when aggregated
+- **Key Field Consistency**: Checks for missing records between models
+- **Metric Consistency**: Validates calculated metrics are identical
+- **Data Quality Validation**: Checks for duplicates and invalid values
+- **Business Logic Validation**: Validates business rules and metric calculations
+
+Run tests and validations:
 ```bash
-dbt test --select stg_facebook_ads
+# Run all tests
+dbt test
+
+# Run validation queries
+dbt compile --select analysis/validation_*
+# Then execute the compiled SQL in your BigQuery console
 ```
 
 ## 📈 Calculated Metrics
@@ -124,15 +185,18 @@ dbt test --select stg_facebook_ads
 
 **String Conversion Errors**: The package uses `safe_cast()` to handle string to numeric conversions for fields like `actions_purchase`, `action_values_purchase`, and `ctr`.
 
-**Duplicate Records**: The insights model includes automatic deduplication logic that keeps the record with highest spend/impressions for each grain.
+**Duplicate Records**: The insights model includes deduplication logic that keeps the record with highest spend/impressions for each grain.
 
 **Test Failures**: Check the `return_on_ad_spend_consistency` test it handles cases where conversion data may not be available.
 
 ## 📚 Additional Resources
 
 - **Data Profiling**: Use `analysis/windsor_data_profiling.sql` to understand your data
-- **Source Documentation**: See `models/staging/facebook_ads/sources.yml` for field definitions
-- **Model Tests**: Review `models/staging/facebook_ads/schema.yml` for validation logic
+- **Field Mapping**: Review `analysis/docs/field_mapping.md` for field documentation
+- **Data Discovery**: See `analysis/docs/data_discovery_results.md` for profiling insights
+- **Source Documentation**: Review `models/staging/facebook_ads/sources.yml` for field definitions
+- **Model Documentation**: Check schema.yml files in each layer for model and column documentation
+- **Validation Queries**: Use `analysis/validation_*.sql` files for ongoing data consistency monitoring
 
 ## 🤝 Contributing
 
