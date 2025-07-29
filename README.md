@@ -142,6 +142,10 @@ dbt test --select stg_facebook_ads
 4. Add tests for new functionality
 5. Submit a pull request
 
+## 📊 Exchange Rate Data
+
+The `data/exchange_rates.csv` file contains sample exchange rate data that has been generated for demonstration and testing purposes. This data should not be used for production financial calculations or real world currency conversions. For production use, please replace with actual exchange rate data from authoritative financial sources.
+
 ## 📄 License
 
 This project is licensed under the MIT License.
