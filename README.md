@@ -11,7 +11,7 @@ A production ready dbt package that transforms raw Facebook Ads data from Windso
 - **Windsor.ai Integration**: Purpose built for Windsor.ai Facebook Ads data structure
 - **Currency Normalization**: Multi currency support with exchange rate handling
 - **Enhanced Metrics**: Performance tiers and alert flags for optimization
-- **Data Validation**: Comprehensive validation queries for data consistency
+- **Data Validation**: Validation queries for data consistency
 
 ## 📊 Model Architecture
 
