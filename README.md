@@ -1,6 +1,6 @@
 # dbt Facebook Ads Windsor Package
 
-A production ready dbt package that transforms raw Facebook Ads data from Windsor.ai into clean, analytics ready tables in BigQuery following standardized architecture patterns.
+A production ready dbt package that transforms raw Facebook Ads data from [Windsor.ai](https://windsor.ai/) into clean, analytics ready tables in BigQuery following standardized architecture patterns. You can find a complete list of [available Facebook Ads fields here](https://windsor.ai/data-field/facebook/).
 
 ## 🚀 Features
 - **Multi-Source Integration**: Support for campaigns, ads, insights, and audience data tables
