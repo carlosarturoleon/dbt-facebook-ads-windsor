@@ -81,7 +81,7 @@ sources:
             description: Total cost of the campaign
 
       - name: facebook_ads_windsor_ads
-        description: Raw Facebook Ads data with ad-level details from Windsor.ai integration
+        description: Raw Facebook Ads data with ad level details from Windsor.ai integration
         columns:
           - name: actor_id
             description: Facebook Ad Account ID
@@ -173,3 +173,39 @@ sources:
             description: Total purchase conversions
           - name: action_values_purchase
             description: Total purchase conversion value
+
+      - name: facebook_ads_windsor_audience_location
+        description: Raw Facebook Ads audience location performance data from Windsor.ai integration
+        columns:
+          - name: age
+            description: Age demographic segment
+          - name: gender
+            description: Gender demographic segment
+          - name: date
+            description: Report date
+          - name: clicks
+            description: Number of clicks
+          - name: frequency
+            description: Average impressions per user
+          - name: impressions
+            description: Number of impressions
+          - name: reach
+            description: Unique users reached
+
+      - name: facebook_ads_windsor_audience_demographics
+        description: Raw Facebook Ads audience demographics performance data from Windsor.ai integration
+        columns:
+          - name: country
+            description: Country location
+          - name: region
+            description: Region location
+          - name: date
+            description: Report date
+          - name: clicks
+            description: Number of clicks
+          - name: frequency
+            description: Average impressions per user
+          - name: impressions
+            description: Number of impressions
+          - name: reach
+            description: Unique users reached

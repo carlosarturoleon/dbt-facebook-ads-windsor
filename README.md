@@ -3,7 +3,8 @@
 A production ready dbt package that transforms raw Facebook Ads data from Windsor.ai into clean, analytics ready tables in BigQuery following standardized architecture patterns.
 
 ## 🚀 Features
-- **Multi-Source Integration**: Support for campaigns, ads, and insights data tables
+- **Multi-Source Integration**: Support for campaigns, ads, insights, and audience data tables
+- **Audience Analytics**: Demographics and location-based audience performance analysis
 - **Data Quality**: Testing suite with deduplication and validation
 - **Type Safety**: String to numeric conversions with safe_cast
 - **Business Metrics**: Precalculated CTR, CPC, ROAS, and conversion rates
@@ -33,6 +34,8 @@ A production ready dbt package that transforms raw Facebook Ads data from Windso
 |-------|-------|-------------|
 | `facebook_ads__base_spend` | Date + Account + Campaign + Ad | Essential spend tracking with core performance metrics for ROI analysis |
 | `facebook_ads__ad_performance_daily` | Date + Account + Campaign + Ad | Comprehensive performance metrics with clustering for detailed analysis |
+| `facebook_ads__campaign_summary` | Date + Campaign | Campaign-level aggregated performance metrics with ad distribution insights |
+| `facebook_ads__audience_metrics` | Date + Audience Type + Segment | Audience performance analytics combining demographics and location data |
 
 ## 🏗️ Project Structure
 
@@ -54,10 +57,12 @@ models/
 │   └── facebook_ads/
 │       ├── facebook_ads__base_spend.sql               # Core spend tracking
 │       ├── facebook_ads__ad_performance_daily.sql     # Full performance suite
+│       ├── facebook_ads__campaign_summary.sql         # Campaign aggregated metrics
+│       ├── facebook_ads__audience_metrics.sql         # Audience analytics
 │       └── schema.yml                                 # Model documentation & tests
 analysis/
 ├── docs/
-│   ├── data_discovery_results.md           # Data profiling documentation
+│   ├── package_capabilities.md             # Package capabilities and features documentation
 │   └── field_mapping.md                    # Field mapping reference
 ├── validation_row_count_consistency.sql    # Row count validation
 ├── validation_spend_totals.sql             # Spend totals validation
@@ -86,6 +91,8 @@ vars:
 - `facebook_ads_windsor_campaigns`: Campaign level data
 - `facebook_ads_windsor_ads`: Ad creative data  
 - `facebook_ads_windsor_insights`: Performance metrics data
+- `facebook_ads_windsor_audience_location`: Audience location performance data (age, gender segments)
+- `facebook_ads_windsor_audience_demographics`: Audience demographics performance data (country, region segments)
 
 3. **Run the models**:
 ```bash
@@ -117,6 +124,16 @@ Contains ad-level creative information and metadata.
 Contains daily performance metrics at the ad level.
 
 **Key Fields**: `date`, `account_id`, `campaign_id`, `ad_id`, `impressions`, `clicks`, `spend`, `actions_purchase`
+
+### Source: `facebook_ads_windsor_audience_location`
+Contains audience performance metrics segmented by demographics (age and gender).
+
+**Key Fields**: `date`, `age`, `gender`, `clicks`, `frequency`, `impressions`, `reach`
+
+### Source: `facebook_ads_windsor_audience_demographics`
+Contains audience performance metrics segmented by location (country and region).
+
+**Key Fields**: `date`, `country`, `region`, `clicks`, `frequency`, `impressions`, `reach`
 
 ## ⚙️ Configuration
 
@@ -191,9 +208,9 @@ dbt compile --select analysis/validation_*
 
 ## 📚 Additional Resources
 
-- **Data Profiling**: Use `analysis/windsor_data_profiling.sql` to understand your data
+- **Package Capabilities**: Review `analysis/docs/package_capabilities.md` for comprehensive feature documentation
 - **Field Mapping**: Review `analysis/docs/field_mapping.md` for field documentation
-- **Data Discovery**: See `analysis/docs/data_discovery_results.md` for profiling insights
+- **Data Profiling**: Use `analysis/windsor_data_profiling.sql` to understand your data
 - **Source Documentation**: Review `models/staging/facebook_ads/sources.yml` for field definitions
 - **Model Documentation**: Check schema.yml files in each layer for model and column documentation
 - **Validation Queries**: Use `analysis/validation_*.sql` files for ongoing data consistency monitoring
