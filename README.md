@@ -5,6 +5,8 @@ A production ready dbt package that transforms raw Facebook Ads data from Windso
 ## 🚀 Features
 - **Multi-Source Integration**: Support for campaigns, ads, insights, and audience data tables
 - **Audience Analytics**: Demographics and location-based audience performance analysis
+- **Reusable Macros**: 5 utility macros for consistent metric calculations and data processing
+- **Custom Tests**: 4 Facebook Ads-specific tests for data quality validation
 - **Data Quality**: Testing suite with deduplication and validation
 - **Type Safety**: String to numeric conversions with safe_cast
 - **Business Metrics**: Precalculated CTR, CPC, ROAS, and conversion rates
@@ -33,7 +35,7 @@ A production ready dbt package that transforms raw Facebook Ads data from Windso
 | Model | Grain | Description |
 |-------|-------|-------------|
 | `facebook_ads__base_spend` | Date + Account + Campaign + Ad | Essential spend tracking with core performance metrics for ROI analysis |
-| `facebook_ads__ad_performance_daily` | Date + Account + Campaign + Ad | Comprehensive performance metrics with clustering for detailed analysis |
+| `facebook_ads__ad_performance_daily` | Date + Account + Campaign + Ad | Performance metrics with clustering for detailed analysis |
 | `facebook_ads__campaign_summary` | Date + Campaign | Campaign-level aggregated performance metrics with ad distribution insights |
 | `facebook_ads__audience_metrics` | Date + Audience Type + Segment | Audience performance analytics combining demographics and location data |
 
@@ -63,7 +65,8 @@ models/
 analysis/
 ├── docs/
 │   ├── package_capabilities.md             # Package capabilities and features documentation
-│   └── field_mapping.md                    # Field mapping reference
+│   ├── field_mapping.md                    # Field mapping reference
+│   └── macros_documentation.md             # Macros and custom tests documentation
 ├── validation_row_count_consistency.sql    # Row count validation
 ├── validation_spend_totals.sql             # Spend totals validation
 ├── validation_key_field_consistency.sql    # Key field validation
@@ -73,6 +76,9 @@ analysis/
 └── windsor_data_profiling.sql              # Data profiling queries
 data/
 └── exchange_rates.csv                      # Sample exchange rate data
+tests/
+├── assert_facebook_ads_data_quality.sql    # Data quality test
+└── assert_campaign_summary_aggregation.sql # Campaign aggregation validation
 ```
 
 ## 🛠 Quick Start
@@ -206,10 +212,41 @@ dbt compile --select analysis/validation_*
 
 **Test Failures**: Check the `return_on_ad_spend_consistency` test it handles cases where conversion data may not be available.
 
+## 🔧 Macros & Custom Tests
+
+This package includes **5 utility macros** and **4 custom tests** designed specifically for Facebook Ads data:
+
+### Utility Macros
+- `calculate_performance_metrics`: Calculate CTR, CPC, CPM, conversion rate, ROAS, cost per conversion
+- `classify_performance_tier`: Classify performance into tiers (High/Good/Average/Poor/No Spend)
+- `standardize_campaign_objective`: Standardize Facebook campaign objectives to consistent names
+- `validate_facebook_ads_data`: Generate data quality validation flags
+- `generate_facebook_ads_surrogate_key`: Generate consistent surrogate keys for different grains
+
+### Custom Tests
+- `facebook_ads_ctr_range`: Test CTR values are within 0-100% range
+- `facebook_ads_metric_consistency`: Test clicks never exceed impressions
+- `facebook_ads_spend_consistency`: Test spend consistency with activity
+- `facebook_ads_performance_tier_valid`: Test performance tier values are valid
+
+**Usage Example**:
+```sql
+select 
+    date_day,
+    campaign_id,
+    impressions,
+    clicks,
+    spend,
+    {{ calculate_performance_metrics('impressions', 'clicks', 'spend') }},
+    {{ classify_performance_tier('click_through_rate') }} as performance_tier
+from my_facebook_ads_data
+```
+
 ## 📚 Additional Resources
 
-- **Package Capabilities**: Review `analysis/docs/package_capabilities.md` for comprehensive feature documentation
+- **Package Capabilities**: Review `analysis/docs/package_capabilities.md` for feature documentation
 - **Field Mapping**: Review `analysis/docs/field_mapping.md` for field documentation
+- **Macros Documentation**: Review `analysis/docs/macros_documentation.md` for detailed macro usage and examples
 - **Data Profiling**: Use `analysis/windsor_data_profiling.sql` to understand your data
 - **Source Documentation**: Review `models/staging/facebook_ads/sources.yml` for field definitions
 - **Model Documentation**: Check schema.yml files in each layer for model and column documentation
