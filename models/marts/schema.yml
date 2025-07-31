@@ -509,3 +509,105 @@ models:
           expression: "active_ads_count <= total_ads"
           config:
             where: "total_ads > 0"
+
+  - name: facebook_ads__audience_metrics
+    description: |
+      Facebook Ads audience performance metrics combining demographics and location data.
+      
+      **Business Purpose:** Audience segmentation analysis and targeting optimization by providing 
+      insights into audience performance across demographics and geographic locations.
+      
+      **Data Grain:** One record per audience segment per day (combining demographics and location data)
+      
+      **Usage Examples:**
+      - Audience segmentation and targeting optimization
+      - Demographics vs location performance comparison  
+      - Reach and frequency analysis by audience segments
+      - Geographic and demographic performance insights
+      - Audience composition and behavior analysis
+      
+      **Data Freshness:** Updated daily with previous day's performance data
+      
+      **Dependencies:** Sources directly from facebook_ads_windsor_audience_demographics and facebook_ads_windsor_audience_location tables
+    
+    columns:
+      - name: date_day
+        description: "Date of the advertising activity (YYYY-MM-DD format)"
+        tests:
+          - not_null
+      
+      - name: audience_type
+        description: "Type of audience segmentation: 'Demographics' or 'Location'"
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['Demographics', 'Location']
+      
+      - name: primary_segment
+        description: "Primary audience segment - age for demographics, country for location"
+        tests:
+          - not_null
+      
+      - name: secondary_segment
+        description: "Secondary audience segment - gender for demographics, region for location"
+        tests:
+          - not_null
+      
+      - name: impressions
+        description: "Total number of times ads were displayed to this audience segment"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+      
+      - name: clicks
+        description: "Total number of clicks received from this audience segment"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+      
+      - name: reach
+        description: "Number of unique users reached within this audience segment"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+      
+      - name: frequency
+        description: "Average number of times each person in this segment saw the ads"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+      
+      - name: click_through_rate
+        description: "Percentage of impressions that resulted in clicks for this audience segment (clicks/impressions * 100)"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+              max_value: 100
+      
+      - name: calculated_frequency
+        description: "Calculated frequency based on impressions/reach, used for validation and quality checks"
+        tests:
+          - dbt_utils.accepted_range:
+              min_value: 0
+      
+      - name: data_quality_flag
+        description: "Data quality validation flag - only 'Valid' records are included in final output"
+        tests:
+          - accepted_values:
+              values: ['Valid']
+
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - date_day
+            - audience_type
+            - primary_segment
+            - secondary_segment
+      - dbt_utils.expression_is_true:
+          expression: "clicks <= impressions"
+          config:
+            where: "impressions > 0"
+      - dbt_utils.expression_is_true:
+          expression: "click_through_rate <= 100"
+          config:
+            where: "click_through_rate is not null"
